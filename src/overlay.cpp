@@ -27,6 +27,7 @@
 #include "net.h"
 #include "fex.h"
 #include "ftrace.h"
+#include "otel_exporter.h"
 
 #ifdef __linux__
 #include <libgen.h>
@@ -173,6 +174,12 @@ void update_hw_info(const struct overlay_params& params, uint32_t vendorID)
       graph_data.pop_front();
    graph_data.push_back(currentLogData);
    if (logger) logger->notify_data_valid();
+   
+   // Update OpenTelemetry metrics if enabled
+   if (otel_exporter && otel_exporter->is_enabled()) {
+      otel_exporter->update_metrics();
+   }
+   
    HUDElements.update_exec();
 }
 
@@ -238,6 +245,12 @@ void stop_hw_updater()
       hw_update_thread.reset();
 }
 
+void stop_otel_exporter()
+{
+   if (otel_exporter)
+      otel_exporter.reset();
+}
+
 void update_hud_info_with_frametime(struct swapchain_stats& sw_stats, const struct overlay_params& params, uint32_t vendorID, uint64_t frametime_ns){
    uint32_t f_idx = sw_stats.n_frames % ARRAY_SIZE(sw_stats.frames_stats);
    uint64_t now = os_time_get_nano(); /* ns */
@@ -272,6 +285,12 @@ void update_hud_info_with_frametime(struct swapchain_stats& sw_stats, const stru
       if (!hw_update_thread)
          hw_update_thread = std::make_unique<hw_info_updater>();
       hw_update_thread->update(&params, vendorID);
+      
+      // Initialize OpenTelemetry exporter if enabled
+      if (params.enabled[OVERLAY_PARAM_ENABLED_otel_enabled] && !otel_exporter) {
+         otel_exporter = std::make_unique<OtelExporter>(&params);
+         otel_exporter->start();
+      }
 
       if (fpsmetrics) fpsmetrics->update_thread();
 #ifdef __linux__

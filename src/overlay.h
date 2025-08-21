@@ -113,6 +113,7 @@ void center_text(const std::string& text);
 ImVec4 change_on_load_temp(LOAD_DATA& data, unsigned current);
 float get_time_stat(void *_data, int _idx);
 void stop_hw_updater();
+void stop_otel_exporter();
 extern void control_client_check(int control, int& control_client, const std::string& deviceName);
 extern void process_control_socket(int& control_client, overlay_params &params);
 extern void control_send(int control_client, const char *cmd, unsigned cmdlen, const char *param, unsigned paramlen);

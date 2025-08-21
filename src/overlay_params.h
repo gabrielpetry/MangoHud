@@ -216,6 +216,10 @@ struct Tracepoint;
    OVERLAY_PARAM_CUSTOM(gpu_list)                    \
    OVERLAY_PARAM_CUSTOM(fex_stats)                   \
    OVERLAY_PARAM_CUSTOM(ftrace)                      \
+   OVERLAY_PARAM_BOOL(otel_enabled)                  \
+   OVERLAY_PARAM_CUSTOM(otel_port)                   \
+   OVERLAY_PARAM_CUSTOM(otel_start_timeout)          \
+   OVERLAY_PARAM_CUSTOM(otel_update_interval)        \
 
 enum overlay_param_position {
    LAYER_POSITION_TOP_LEFT,
@@ -381,6 +385,11 @@ struct overlay_params {
 #endif
    };
    ftrace_options ftrace {};
+
+   // OpenTelemetry configuration
+   std::string otel_port {"0.0.0.0:16969"};
+   unsigned otel_start_timeout {10};        // seconds
+   unsigned otel_update_interval {500};     // milliseconds
 };
 
 const extern char *overlay_param_names[];

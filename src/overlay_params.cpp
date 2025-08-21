@@ -588,6 +588,9 @@ parse_ftrace(const char *str) {
 #define parse_device_battery(s) parse_str_tokenize(s)
 #define parse_network(s) parse_str_tokenize(s)
 #define parse_gpu_text(s) parse_str_tokenize(s)
+#define parse_otel_port(s) parse_str(s)
+#define parse_otel_start_timeout(s) parse_unsigned(s)
+#define parse_otel_update_interval(s) parse_unsigned(s)
 
 static bool
 parse_help(const char *str)
