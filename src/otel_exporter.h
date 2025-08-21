@@ -28,21 +28,21 @@ private:
     void handle_metrics_request(int client_socket);
     std::string generate_metrics();
     std::string escape_label_value(const std::string& value);
-    
+
     const overlay_params* params_;
     std::atomic<bool> enabled_;
     std::atomic<bool> should_stop_;
     std::thread server_thread_;
     std::thread metrics_thread_;
-    
+
     std::mutex metrics_mutex_;
     std::condition_variable metrics_cv_;
-    std::atomic<bool> metrics_updated_;
-    
+
     int server_socket_;
+    std::atomic<bool> metrics_updated_;
     std::string bind_address_;
     uint16_t bind_port_;
-    
+
     // Cached metrics
     struct MetricsData {
         double fps = 0.0;
@@ -65,7 +65,7 @@ private:
         int process_pid = 0;
         std::chrono::steady_clock::time_point timestamp;
     } current_metrics_;
-    
+
     void parse_bind_address(const std::string& address);
     void start_delay_timer();
 };

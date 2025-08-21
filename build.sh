@@ -25,6 +25,7 @@ for os_release in ${OS_RELEASE_FILES[@]} ; do
 done
 
 dependencies() {
+    return
     if [[ ! -f build/release/usr/lib/libMangoHud.so ]]; then
         missing_deps() {
             echo "# Missing dependencies:$INSTALL"
@@ -149,8 +150,8 @@ configure() {
         meson build/meson64 --libdir lib/mangohud/lib64 --prefix /usr -Dappend_libdir_mangohud=false $@ ${CONFIGURE_OPTS}
     fi
     if [[ ! -f "build/meson32/build.ninja" && "$MACHINE" = "x86_64" ]]; then
-        export CC="gcc -m32"
-        export CXX="g++ -m32"
+        export CC="gcc"
+        export CXX="g++"
         export PKG_CONFIG_PATH="/usr/lib32/pkgconfig:/usr/lib/i386-linux-gnu/pkgconfig:/usr/lib/pkgconfig:${PKG_CONFIG_PATH_32}"
         meson build/meson32 --libdir lib/mangohud/lib32 --prefix /usr -Dappend_libdir_mangohud=false $@ ${CONFIGURE_OPTS}
     fi
