@@ -3,6 +3,7 @@
 #include "logging.h"
 #include "overlay.h"
 #include "config.h"
+#include "hud_elements.h"
 #include <spdlog/spdlog.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -34,6 +35,7 @@ OtelExporter::OtelExporter(const overlay_params* params)
 }
 
 OtelExporter::~OtelExporter() {
+    SPDLOG_DEBUG("OpenTelemetry exporter destructor called");
     stop();
 }
 
@@ -41,10 +43,39 @@ void OtelExporter::parse_bind_address(const std::string& address) {
     size_t colon_pos = address.find(':');
     if (colon_pos != std::string::npos) {
         bind_address_ = address.substr(0, colon_pos);
-        bind_port_ = static_cast<uint16_t>(std::stoi(address.substr(colon_pos + 1)));
+        std::string port_str = address.substr(colon_pos + 1);
+        try {
+            int port = std::stoi(port_str);
+            if (port < 1 || port > 65535) {
+                SPDLOG_ERROR("Invalid port number for OpenTelemetry exporter: {}. Using default 16969", port);
+                bind_port_ = 16969;
+            } else {
+                bind_port_ = static_cast<uint16_t>(port);
+            }
+        } catch (const std::exception& e) {
+            SPDLOG_ERROR("Failed to parse port for OpenTelemetry exporter: {}. Using default 16969", port_str);
+            bind_port_ = 16969;
+        }
     } else {
         bind_address_ = "0.0.0.0";
-        bind_port_ = std::stoi(address);
+        try {
+            int port = std::stoi(address);
+            if (port < 1 || port > 65535) {
+                SPDLOG_ERROR("Invalid port number for OpenTelemetry exporter: {}. Using default 16969", port);
+                bind_port_ = 16969;
+            } else {
+                bind_port_ = static_cast<uint16_t>(port);
+            }
+        } catch (const std::exception& e) {
+            SPDLOG_ERROR("Failed to parse port for OpenTelemetry exporter: {}. Using default 16969", address);
+            bind_port_ = 16969;
+        }
+    }
+    
+    // Validate IP address format (basic check)
+    if (bind_address_ != "0.0.0.0" && bind_address_ != "127.0.0.1" && 
+        bind_address_ != "localhost" && bind_address_.find_first_not_of("0123456789.") != std::string::npos) {
+        SPDLOG_WARN("IP address format might be invalid for OpenTelemetry exporter: {}", bind_address_);
     }
 }
 
@@ -222,8 +253,14 @@ void OtelExporter::update_metrics() {
     current_metrics_.process_name = get_program_name();
     current_metrics_.process_pid = getpid();
     
-    // TODO: Detect graphics API (Vulkan, OpenGL, etc.)
-    current_metrics_.graphics_api = "unknown";
+    // Get graphics API from HUDElements
+    extern HudElements HUDElements;
+    if (HUDElements.sw_stats && HUDElements.sw_stats->engine < 18) { // Sanity check
+        extern const char* engines[];
+        current_metrics_.graphics_api = engines[HUDElements.sw_stats->engine];
+    } else {
+        current_metrics_.graphics_api = "unknown";
+    }
     
     current_metrics_.timestamp = std::chrono::steady_clock::now();
     metrics_updated_ = true;
