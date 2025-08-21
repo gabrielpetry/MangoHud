@@ -14,6 +14,7 @@
 #include <string.h>
 #include <sstream>
 #include <iomanip>
+#include <cmath>
 
 std::unique_ptr<OtelExporter> otel_exporter;
 
@@ -308,84 +309,123 @@ std::string OtelExporter::generate_metrics() {
                         "\",graphics_api=\"" + escape_label_value(current_metrics_.graphics_api) + 
                         "\",pid=\"" + std::to_string(current_metrics_.process_pid) + "\"";
     
-    // FPS metrics
-    oss << "# HELP mangohud_fps_current Current frames per second\n";
-    oss << "# TYPE mangohud_fps_current gauge\n";
-    oss << "mangohud_fps_current{" << labels << "} " << std::fixed << std::setprecision(2) 
-        << current_metrics_.fps << " " << now << "\n";
+    // Helper lambda to check if a value is valid (not NaN, not infinite)
+    auto is_valid = [](float value) -> bool {
+        return std::isfinite(value) && value >= 0;
+    };
     
-    oss << "# HELP mangohud_frametime_ms Current frame time in milliseconds\n";
-    oss << "# TYPE mangohud_frametime_ms gauge\n";
-    oss << "mangohud_frametime_ms{" << labels << "} " << std::fixed << std::setprecision(3) 
-        << current_metrics_.frametime << " " << now << "\n";
+    auto is_valid_double = [](double value) -> bool {
+        return std::isfinite(value) && value >= 0;
+    };
+    
+    // FPS metrics
+    if (is_valid_double(current_metrics_.fps)) {
+        oss << "# HELP mangohud_fps_current Current frames per second\n";
+        oss << "# TYPE mangohud_fps_current gauge\n";
+        oss << "mangohud_fps_current{" << labels << "} " << std::fixed << std::setprecision(2) 
+            << current_metrics_.fps << " " << now << "\n";
+    }
+    
+    if (is_valid(current_metrics_.frametime)) {
+        oss << "# HELP mangohud_frametime_ms Current frame time in milliseconds\n";
+        oss << "# TYPE mangohud_frametime_ms gauge\n";
+        oss << "mangohud_frametime_ms{" << labels << "} " << std::fixed << std::setprecision(3) 
+            << current_metrics_.frametime << " " << now << "\n";
+    }
     
     // CPU metrics
-    oss << "# HELP mangohud_cpu_load_percent CPU load percentage\n";
-    oss << "# TYPE mangohud_cpu_load_percent gauge\n";
-    oss << "mangohud_cpu_load_percent{" << labels << "} " << std::fixed << std::setprecision(1) 
-        << current_metrics_.cpu_load << " " << now << "\n";
+    if (is_valid(current_metrics_.cpu_load) && current_metrics_.cpu_load <= 100.0f) {
+        oss << "# HELP mangohud_cpu_load_percent CPU load percentage\n";
+        oss << "# TYPE mangohud_cpu_load_percent gauge\n";
+        oss << "mangohud_cpu_load_percent{" << labels << "} " << std::fixed << std::setprecision(1) 
+            << current_metrics_.cpu_load << " " << now << "\n";
+    }
     
-    oss << "# HELP mangohud_cpu_power_watts CPU power consumption in watts\n";
-    oss << "# TYPE mangohud_cpu_power_watts gauge\n";
-    oss << "mangohud_cpu_power_watts{" << labels << "} " << std::fixed << std::setprecision(1) 
-        << current_metrics_.cpu_power << " " << now << "\n";
+    if (is_valid(current_metrics_.cpu_power)) {
+        oss << "# HELP mangohud_cpu_power_watts CPU power consumption in watts\n";
+        oss << "# TYPE mangohud_cpu_power_watts gauge\n";
+        oss << "mangohud_cpu_power_watts{" << labels << "} " << std::fixed << std::setprecision(1) 
+            << current_metrics_.cpu_power << " " << now << "\n";
+    }
     
-    oss << "# HELP mangohud_cpu_frequency_mhz CPU frequency in MHz\n";
-    oss << "# TYPE mangohud_cpu_frequency_mhz gauge\n";
-    oss << "mangohud_cpu_frequency_mhz{" << labels << "} " << current_metrics_.cpu_mhz 
-        << " " << now << "\n";
+    if (current_metrics_.cpu_mhz > 0) {
+        oss << "# HELP mangohud_cpu_frequency_mhz CPU frequency in MHz\n";
+        oss << "# TYPE mangohud_cpu_frequency_mhz gauge\n";
+        oss << "mangohud_cpu_frequency_mhz{" << labels << "} " << current_metrics_.cpu_mhz 
+            << " " << now << "\n";
+    }
     
-    oss << "# HELP mangohud_cpu_temperature_celsius CPU temperature in Celsius\n";
-    oss << "# TYPE mangohud_cpu_temperature_celsius gauge\n";
-    oss << "mangohud_cpu_temperature_celsius{" << labels << "} " << current_metrics_.cpu_temp 
-        << " " << now << "\n";
+    if (current_metrics_.cpu_temp > 0 && current_metrics_.cpu_temp < 200) {  // Sanity check for temperature
+        oss << "# HELP mangohud_cpu_temperature_celsius CPU temperature in Celsius\n";
+        oss << "# TYPE mangohud_cpu_temperature_celsius gauge\n";
+        oss << "mangohud_cpu_temperature_celsius{" << labels << "} " << current_metrics_.cpu_temp 
+            << " " << now << "\n";
+    }
     
     // GPU metrics
-    oss << "# HELP mangohud_gpu_load_percent GPU load percentage\n";
-    oss << "# TYPE mangohud_gpu_load_percent gauge\n";
-    oss << "mangohud_gpu_load_percent{" << labels << "} " << std::fixed << std::setprecision(1) 
-        << current_metrics_.gpu_load << " " << now << "\n";
+    if (is_valid(current_metrics_.gpu_load) && current_metrics_.gpu_load <= 100.0f) {
+        oss << "# HELP mangohud_gpu_load_percent GPU load percentage\n";
+        oss << "# TYPE mangohud_gpu_load_percent gauge\n";
+        oss << "mangohud_gpu_load_percent{" << labels << "} " << std::fixed << std::setprecision(1) 
+            << current_metrics_.gpu_load << " " << now << "\n";
+    }
     
-    oss << "# HELP mangohud_gpu_temperature_celsius GPU temperature in Celsius\n";
-    oss << "# TYPE mangohud_gpu_temperature_celsius gauge\n";
-    oss << "mangohud_gpu_temperature_celsius{" << labels << "} " << current_metrics_.gpu_temp 
-        << " " << now << "\n";
+    if (current_metrics_.gpu_temp > 0 && current_metrics_.gpu_temp < 200) {  // Sanity check for temperature
+        oss << "# HELP mangohud_gpu_temperature_celsius GPU temperature in Celsius\n";
+        oss << "# TYPE mangohud_gpu_temperature_celsius gauge\n";
+        oss << "mangohud_gpu_temperature_celsius{" << labels << "} " << current_metrics_.gpu_temp 
+            << " " << now << "\n";
+    }
     
-    oss << "# HELP mangohud_gpu_core_clock_mhz GPU core clock in MHz\n";
-    oss << "# TYPE mangohud_gpu_core_clock_mhz gauge\n";
-    oss << "mangohud_gpu_core_clock_mhz{" << labels << "} " << current_metrics_.gpu_core_clock 
-        << " " << now << "\n";
+    if (current_metrics_.gpu_core_clock > 0) {
+        oss << "# HELP mangohud_gpu_core_clock_mhz GPU core clock in MHz\n";
+        oss << "# TYPE mangohud_gpu_core_clock_mhz gauge\n";
+        oss << "mangohud_gpu_core_clock_mhz{" << labels << "} " << current_metrics_.gpu_core_clock 
+            << " " << now << "\n";
+    }
     
-    oss << "# HELP mangohud_gpu_memory_clock_mhz GPU memory clock in MHz\n";
-    oss << "# TYPE mangohud_gpu_memory_clock_mhz gauge\n";
-    oss << "mangohud_gpu_memory_clock_mhz{" << labels << "} " << current_metrics_.gpu_mem_clock 
-        << " " << now << "\n";
+    if (current_metrics_.gpu_mem_clock > 0) {
+        oss << "# HELP mangohud_gpu_memory_clock_mhz GPU memory clock in MHz\n";
+        oss << "# TYPE mangohud_gpu_memory_clock_mhz gauge\n";
+        oss << "mangohud_gpu_memory_clock_mhz{" << labels << "} " << current_metrics_.gpu_mem_clock 
+            << " " << now << "\n";
+    }
     
-    oss << "# HELP mangohud_gpu_power_watts GPU power consumption in watts\n";
-    oss << "# TYPE mangohud_gpu_power_watts gauge\n";
-    oss << "mangohud_gpu_power_watts{" << labels << "} " << std::fixed << std::setprecision(1) 
-        << current_metrics_.gpu_power << " " << now << "\n";
+    if (is_valid(current_metrics_.gpu_power)) {
+        oss << "# HELP mangohud_gpu_power_watts GPU power consumption in watts\n";
+        oss << "# TYPE mangohud_gpu_power_watts gauge\n";
+        oss << "mangohud_gpu_power_watts{" << labels << "} " << std::fixed << std::setprecision(1) 
+            << current_metrics_.gpu_power << " " << now << "\n";
+    }
     
-    oss << "# HELP mangohud_gpu_vram_used_gb GPU VRAM used in GB\n";
-    oss << "# TYPE mangohud_gpu_vram_used_gb gauge\n";
-    oss << "mangohud_gpu_vram_used_gb{" << labels << "} " << std::fixed << std::setprecision(3) 
-        << current_metrics_.gpu_vram_used << " " << now << "\n";
+    if (is_valid(current_metrics_.gpu_vram_used)) {
+        oss << "# HELP mangohud_gpu_vram_used_gb GPU VRAM used in GB\n";
+        oss << "# TYPE mangohud_gpu_vram_used_gb gauge\n";
+        oss << "mangohud_gpu_vram_used_gb{" << labels << "} " << std::fixed << std::setprecision(3) 
+            << current_metrics_.gpu_vram_used << " " << now << "\n";
+    }
     
     // Memory metrics
-    oss << "# HELP mangohud_ram_used_gb System RAM used in GB\n";
-    oss << "# TYPE mangohud_ram_used_gb gauge\n";
-    oss << "mangohud_ram_used_gb{" << labels << "} " << std::fixed << std::setprecision(3) 
-        << current_metrics_.ram_used << " " << now << "\n";
+    if (is_valid(current_metrics_.ram_used)) {
+        oss << "# HELP mangohud_ram_used_gb System RAM used in GB\n";
+        oss << "# TYPE mangohud_ram_used_gb gauge\n";
+        oss << "mangohud_ram_used_gb{" << labels << "} " << std::fixed << std::setprecision(3) 
+            << current_metrics_.ram_used << " " << now << "\n";
+    }
     
-    oss << "# HELP mangohud_swap_used_gb System swap used in GB\n";
-    oss << "# TYPE mangohud_swap_used_gb gauge\n";
-    oss << "mangohud_swap_used_gb{" << labels << "} " << std::fixed << std::setprecision(3) 
-        << current_metrics_.swap_used << " " << now << "\n";
+    if (is_valid(current_metrics_.swap_used)) {
+        oss << "# HELP mangohud_swap_used_gb System swap used in GB\n";
+        oss << "# TYPE mangohud_swap_used_gb gauge\n";
+        oss << "mangohud_swap_used_gb{" << labels << "} " << std::fixed << std::setprecision(3) 
+            << current_metrics_.swap_used << " " << now << "\n";
+    }
     
-    oss << "# HELP mangohud_process_rss_gb Process RSS memory in GB\n";
-    oss << "# TYPE mangohud_process_rss_gb gauge\n";
-    oss << "mangohud_process_rss_gb{" << labels << "} " << std::fixed << std::setprecision(3) 
-        << current_metrics_.process_rss << " " << now << "\n";
+    if (is_valid(current_metrics_.process_rss)) {
+        oss << "# HELP mangohud_process_rss_gb Process RSS memory in GB\n";
+        oss << "# TYPE mangohud_process_rss_gb gauge\n";
+        oss << "mangohud_process_rss_gb{" << labels << "} " << std::fixed << std::setprecision(3) 
+            << current_metrics_.process_rss << " " << now << "\n";
+    }
     
     return oss.str();
 }
