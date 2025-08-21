@@ -428,6 +428,10 @@ Parameters that are enabled by default have to be explicitly disabled. These (cu
 | `no_display`                       | Hide the HUD by default                                                               |
 | `no_small_font`                    | Use primary font size for smaller text like units                                     |
 | `offset_x` `offset_y`              | HUD position offsets                                                                  |
+| `otel_enabled`                     | Enable OpenTelemetry metrics export via HTTP in Prometheus format                    |
+| `otel_port`                        | OpenTelemetry server bind address and port. Default is `0.0.0.0:16969`              |
+| `otel_start_timeout`               | Delay before starting OpenTelemetry server in seconds. Default is `10`               |
+| `otel_update_interval`             | OpenTelemetry metrics update interval in milliseconds. Default is `500`              |
 | `output_file`                      | Set location and name of the log file                                                 |
 | `output_folder`                    | Set location of the output files (Required for logging)                               |
 | `pci_dev`                          | Select GPU device in multi-gpu setups                                                 |
@@ -542,6 +546,84 @@ Example output:
 ![Overwatch 2 windows 11 vs linux](assets/Overwatch2-w11-vs-linux.svg)
 
 <sub><sup>Overwatch 2, 5950X + 5700XT, low graphics preset, FHD, 50% render scale</sup></sub>
+
+## OpenTelemetry Metrics Export
+
+MangoHud can export all its performance metrics via HTTP in Prometheus format for integration with monitoring systems like Prometheus and Grafana.
+
+### Building with OpenTelemetry Support
+
+OpenTelemetry export functionality is included by default in MangoHud builds. No additional dependencies are required beyond the standard MangoHud build dependencies, as it uses only system networking libraries.
+
+Build normally using any of the standard methods:
+
+```bash
+# Using the build script
+./build.sh build
+
+# Or using meson directly
+meson build
+ninja -C build install
+```
+
+### Configuration
+
+Add these parameters to your MangoHud configuration:
+
+```ini
+# Enable OpenTelemetry metrics export
+otel_enabled=1
+# Bind address and port (default: 0.0.0.0:16969)
+otel_port=0.0.0.0:16969
+# Delay before starting server in seconds (default: 10)
+otel_start_timeout=10  
+# Metrics update interval in milliseconds (default: 500)
+otel_update_interval=500
+```
+
+### Usage Example
+
+```bash
+# Start your game with MangoHud
+mangohud your_game
+
+# Access metrics endpoint
+curl http://localhost:16969/metrics
+```
+
+### Example Metrics Output
+
+```
+# HELP mangohud_fps_current Current frames per second
+# TYPE mangohud_fps_current gauge
+mangohud_fps_current{process_name="game.exe",graphics_api="VULKAN",pid="12345"} 60.2
+
+# HELP mangohud_cpu_load_percent CPU load percentage
+# TYPE mangohud_cpu_load_percent gauge
+mangohud_cpu_load_percent{process_name="game.exe",graphics_api="VULKAN",pid="12345"} 45.8
+
+# HELP mangohud_gpu_load_percent GPU load percentage
+# TYPE mangohud_gpu_load_percent gauge
+mangohud_gpu_load_percent{process_name="game.exe",graphics_api="VULKAN",pid="12345"} 87.3
+```
+
+### Integration with Monitoring Stack
+
+**Prometheus Configuration (`prometheus.yml`):**
+```yaml
+scrape_configs:
+  - job_name: 'mangohud'
+    static_configs:
+      - targets: ['localhost:16969']
+    scrape_interval: 1s
+```
+
+**Key Features:**
+- **Independent Operation**: Metrics are exported even when the HUD is hidden (`no_display=1`)
+- **Comprehensive Metrics**: All MangoHud metrics (FPS, CPU, GPU, memory, temperatures, etc.)
+- **Rich Labels**: Every metric includes `process_name`, `graphics_api`, and `pid` for correlation
+- **Low Overhead**: Minimal performance impact on games
+- **Prometheus Compatible**: Standard metrics format with proper headers
 
 ## Metrics support by GPU vendor/driver
 <table>
