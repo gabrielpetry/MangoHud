@@ -219,7 +219,7 @@ struct Tracepoint;
    OVERLAY_PARAM_BOOL(otel_enabled)                  \
    OVERLAY_PARAM_CUSTOM(otel_port)                   \
    OVERLAY_PARAM_CUSTOM(otel_start_timeout)          \
-   OVERLAY_PARAM_CUSTOM(otel_update_interval)        \
+   OVERLAY_PARAM_CUSTOM(otel_update_interval)
 
 enum overlay_param_position {
    LAYER_POSITION_TOP_LEFT,
