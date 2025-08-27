@@ -46,6 +46,13 @@ static std::string get_program_dir() {
 }
 
 std::string get_program_name() {
+    // If running under Wine, prefer the target executable name (e.g. game.exe)
+    // over the preloader binary (wine-preloader / wine64-preloader).
+    std::string wine_name = get_wine_exe_name(true); // keep .exe if present
+    if (!wine_name.empty()) {
+        return wine_name;
+    }
+
     const std::string exe_path = get_exe_path();
     std::string basename = "unknown";
     if (exe_path.empty()) {
