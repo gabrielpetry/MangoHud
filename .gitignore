@@ -49,3 +49,8 @@ subprojects/cmocka/
 **/GPATH
 **/GRTAGS
 **/GTAGS
+
+
+# clangd
+.cache/
+.clangd/
